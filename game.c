@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+// Matrice à 3 dimensions contenant les 7 formes classiques du Tetris
 static int pieces[7][4][4] =
 {
     {
@@ -50,16 +52,19 @@ static int pieces[7][4][4] =
     }
 };
 
+// Initialise une nouvelle partie en remettant tout à zéro
 void initGame(Game *game)
 {
     memset(game->board, 0, sizeof(game->board));
 
     game->score = 0;
     game->gameOver = 0;
+    game->victory = 0; // Initialisation de l'état de victoire à 0 (fausse)
 
     spawnPiece(game);
 }
 
+// Choisit une pièce aléatoire et la place en haut au milieu
 void spawnPiece(Game *game)
 {
     int r = rand() % 7;
@@ -74,6 +79,7 @@ void spawnPiece(Game *game)
     game->current.y = 0;
 }
 
+// Détecte si la pièce actuelle entre en collision avec les bords ou des blocs fixés
 int collision(Game *game, int nx, int ny)
 {
     for(int y = 0; y < 4; y++)
@@ -91,8 +97,7 @@ int collision(Game *game, int nx, int ny)
                 if(by >= BOARD_HEIGHT)
                     return 1;
 
-                if(by >= 0 &&
-                   game->board[by][bx])
+                if(by >= 0 && game->board[by][bx])
                     return 1;
             }
         }
@@ -101,6 +106,7 @@ int collision(Game *game, int nx, int ny)
     return 0;
 }
 
+// Déplace la pièce horizontalement (dx) ou verticalement (dy)
 void movePiece(Game *game, int dx, int dy)
 {
     int nx = game->current.x + dx;
@@ -117,6 +123,7 @@ void movePiece(Game *game, int dx, int dy)
     }
 }
 
+// Effectue une rotation à 90 degrés de la pièce dans le sens horaire
 void rotatePiece(Game *game)
 {
     int tmp[4][4];
@@ -125,8 +132,7 @@ void rotatePiece(Game *game)
     {
         for(int x = 0; x < 4; x++)
         {
-            tmp[y][x] =
-                game->current.shape[3 - x][y];
+            tmp[y][x] = game->current.shape[3 - x][y];
         }
     }
 
@@ -144,10 +150,7 @@ void rotatePiece(Game *game)
         sizeof(tmp)
     );
 
-    if(collision(
-        game,
-        game->current.x,
-        game->current.y))
+    if(collision(game, game->current.x, game->current.y))
     {
         memcpy(
             game->current.shape,
@@ -157,13 +160,10 @@ void rotatePiece(Game *game)
     }
 }
 
+// Fait tomber instantanément la pièce tout en bas
 void hardDrop(Game *game)
 {
-    while(
-        !collision(
-            game,
-            game->current.x,
-            game->current.y + 1))
+    while(!collision(game, game->current.x, game->current.y + 1))
     {
         game->current.y++;
     }
@@ -171,8 +171,7 @@ void hardDrop(Game *game)
     lockPiece(game);
 }
 
-// ... (garder le début de ton game.c inchangé) ...
-
+// Vérifie chaque ligne du plateau pour voir si elle est pleine, et la supprime
 void clearLines(Game *game) {
     int lines = 0;
     for(int y = BOARD_HEIGHT - 1; y >= 0; y--) {
@@ -200,7 +199,7 @@ void clearLines(Game *game) {
     game->score += lines * 100;
 }
 
-// ... (reste du fichier lockPiece et spawnPiece inchangé) ...
+// Fixe définitivement la pièce sur le plateau de jeu
 void lockPiece(Game *game)
 {
     for(int y = 0; y < 4; y++)
@@ -212,10 +211,7 @@ void lockPiece(Game *game)
                 int bx = game->current.x + x;
                 int by = game->current.y + y;
 
-                if(by >= 0 &&
-                   by < BOARD_HEIGHT &&
-                   bx >= 0 &&
-                   bx < BOARD_WIDTH)
+                if(by >= 0 && by < BOARD_HEIGHT && bx >= 0 && bx < BOARD_WIDTH)
                 {
                     game->board[by][bx] = 1;
                 }
@@ -224,18 +220,16 @@ void lockPiece(Game *game)
     }
 
     clearLines(game);
-
     spawnPiece(game);
 
-    if(collision(
-        game,
-        game->current.x,
-        game->current.y))
+    // Si la nouvelle pièce est immédiatement en collision : Perdu
+    if(collision(game, game->current.x, game->current.y))
     {
         game->gameOver = 1;
     }
 }
 
+// Ajoute des lignes grises de malus par le bas (reçues via le réseau)
 void addGarbage(Game *game, int lines)
 {
     for(int i = 0; i < lines; i++)
@@ -244,8 +238,7 @@ void addGarbage(Game *game, int lines)
         {
             for(int x = 0; x < BOARD_WIDTH; x++)
             {
-                game->board[y][x] =
-                    game->board[y + 1][x];
+                game->board[y][x] = game->board[y + 1][x];
             }
         }
 
@@ -258,5 +251,24 @@ void addGarbage(Game *game, int lines)
             else
                 game->board[BOARD_HEIGHT - 1][x] = 1;
         }
+    }
+}
+
+// Analyse le statut actuel de la partie (Victoire ou Perte)
+void checkGameStatus(Game *game)
+{
+    // 1. Détection de la défaite
+    if (game->gameOver == 1 && game->victory == 0)
+    {
+        printf("GAME OVER : Vous avez perdu !\n");
+        // Appel futur à une fonction réseau (ex: sendGameOverSignal();)
+    }
+
+    // 2. Détection de la victoire (déclenchée par le réseau)
+    if (game->victory == 1)
+    {
+        printf("VICTOIRE : Vous êtes le dernier survivant !\n");
+        // On désactive la pièce courante en la sortant du plateau
+        game->current.y = -10; 
     }
 }
