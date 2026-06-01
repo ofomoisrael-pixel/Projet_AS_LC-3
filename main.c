@@ -7,13 +7,12 @@
 #include "graphics.h"
 #include "network.h"
 
-Game game; // Global pour network.c
+Game game;
 
 void afficherTuto() {
     printf("\n=== TUTORIEL TETRIS BATTLE ===\n");
     printf("- FLECHES : Deplacer / Tourner\n");
     printf("- ESPACE  : Chute rapide\n");
-    printf("- BUT     : Envoyer des lignes aux autres !\n");
     printf("==============================\n\n");
 }
 
@@ -21,9 +20,8 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
     char ip[16];
 
-    // --- Menu Configuration Réseau (2 pts) ---
     printf("Entrez l'IP du serveur : ");
-    scanf("%15s", ip);
+    if (scanf("%15s", ip) != 1) return 1;
 
     if (!networkInit(ip)) {
         printf("Erreur de connexion reseau.\n");
@@ -32,13 +30,13 @@ int main(int argc, char *argv[]) {
 
     if (!initGraphics()) return 1;
 
-    // --- Tutoriel (2 pts) ---
     afficherTuto();
-
     initGame(&game);
+    
     int running = 1;
     SDL_Event event;
     Uint32 lastFall = SDL_GetTicks();
+    Uint32 startTime = SDL_GetTicks(); // Debut du chrono
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -49,12 +47,14 @@ int main(int argc, char *argv[]) {
                     case SDLK_RIGHT: movePiece(&game, 1, 0);  break;
                     case SDLK_DOWN:  movePiece(&game, 0, 1);  break;
                     case SDLK_UP:    rotatePiece(&game);      break;
-                    case SDLK_SPACE: hardDrop(&game);        break;
+                    case SDLK_SPACE: hardDrop(&game);         break;
                 }
             }
         }
 
-        receivePackets(); // Mise à jour réseau
+        receivePackets();
+
+        int timeInSeconds = (SDL_GetTicks() - startTime) / 1000;
 
         if (!game.gameOver) {
             Uint32 now = SDL_GetTicks();
@@ -63,9 +63,11 @@ int main(int argc, char *argv[]) {
                 lastFall = now;
             }
         }
-        renderGame(&game);
+        
+        renderGame(&game, timeInSeconds);
         SDL_Delay(16);
     }
+    
     cleanupGraphics();
     return 0;
 }
