@@ -11,7 +11,7 @@ typedef struct {
     int type;
     int playerId;
     int value;
-    int boardState[20];
+    int boardState[20][10];
 } Packet;
 
 struct sockaddr_in clients[MAX_CLIENTS];

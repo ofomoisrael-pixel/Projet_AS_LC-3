@@ -17,6 +17,7 @@ enum { PACKET_JOIN, PACKET_UPDATE, PACKET_ATTACK, PACKET_GAMEOVER };
 
 int networkInit(char *serverIp);
 void sendUpdate(Game *game);
+void sendJoin(void);
 void receivePackets(void);
 void sendAttack(int lines);
 void sendGameOver(void);

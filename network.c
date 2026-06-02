@@ -1,3 +1,7 @@
+// 1. CES DEUX LIGNES DOIVENT ÊTRE TOUT EN HAUT (AVANT LES INCLUDES)
+#define _WIN32_WINNT 0x0600 // Cible Windows Vista et supérieur pour activer inet_pton
+#define WIN32_LEAN_AND_MEAN
+
 #include "network.h"
 #include <stdio.h>
 #include <string.h>
@@ -23,22 +27,47 @@ static struct sockaddr_in serverAddr;
 int networkInit(char *serverIp) {
 #ifdef _WIN32
     WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 0;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        fprintf(stderr, "WSAStartup failed\n");
+        return 0;
+    }
 #endif
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd == INVALID_SOCKET) return 0;
+    if (sockfd == INVALID_SOCKET) {
+#ifdef _WIN32
+        fprintf(stderr, "socket() failed: %d\n", WSAGetLastError());
+#else
+        perror("socket");
+#endif
+        return 0;
+    }
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(SERVER_PORT);
-    inet_pton(AF_INET, serverIp, &serverAddr.sin_addr);
+    if (inet_pton(AF_INET, serverIp, &serverAddr.sin_addr) != 1) {
+        fprintf(stderr, "Adresse IP invalide : %s\n", serverIp);
+        return 0;
+    }
 
     unsigned long mode = 1;
     ioctlsocket(sockfd, FIONBIO, &mode);
 
     Packet p = {PACKET_JOIN, -1, 0, {{0}}};
-    sendto(sockfd, (char*)&p, sizeof(p), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (sendto(sockfd, (char*)&p, sizeof(p), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+#ifdef _WIN32
+        fprintf(stderr, "sendto() failed: %d\n", WSAGetLastError());
+#else
+        perror("sendto");
+#endif
+        return 0;
+    }
     return 1;
+}
+
+void sendJoin(void) {
+    Packet p = {PACKET_JOIN, -1, 0, {{0}}};
+    sendto(sockfd, (char*)&p, sizeof(p), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
 }
 
 void sendUpdate(Game *game) {

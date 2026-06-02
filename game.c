@@ -1,4 +1,5 @@
 #include "game.h"
+#include "graphics.h"
 #include "network.h"
 
 #include <stdlib.h>
@@ -60,8 +61,15 @@ void initGame(Game *game)
     game->score = 0;
     game->gameOver = 0;
     game->victory = 0; // Initialisation de l'état de victoire à 0 (fausse)
+    game->opponentPresent = 0;
+    game->statusShown = 0;
 
     spawnPiece(game);
+}
+
+void resetGame(Game *game)
+{
+    initGame(game);
 }
 
 // Choisit une pièce aléatoire et la place en haut au milieu
@@ -257,18 +265,38 @@ void addGarbage(Game *game, int lines)
 // Analyse le statut actuel de la partie (Victoire ou Perte)
 void checkGameStatus(Game *game)
 {
-    // 1. Détection de la défaite
-    if (game->gameOver == 1 && game->victory == 0)
-    {
-        printf("GAME OVER : Vous avez perdu !\n");
-        // Appel futur à une fonction réseau (ex: sendGameOverSignal();)
+    if (myPlayerId >= 0) {
+        int activeCount = 0;
+        int otherActive = 0;
+
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            if (playersActive[i]) {
+                activeCount++;
+                if (i != myPlayerId) {
+                    otherActive = 1;
+                }
+            }
+        }
+
+        if (otherActive) {
+            game->opponentPresent = 1;
+        }
+
+        if (!game->gameOver && game->victory == 0 && game->opponentPresent && activeCount == 1) {
+            game->victory = 1;
+            game->current.y = -10;
+        }
     }
 
-    // 2. Détection de la victoire (déclenchée par le réseau)
-    if (game->victory == 1)
-    {
-        printf("VICTOIRE : Vous êtes le dernier survivant !\n");
-        // On désactive la pièce courante en la sortant du plateau
-        game->current.y = -10; 
+    if (!game->statusShown) {
+        if (game->victory == 1) {
+            printf("VICTOIRE : Vous êtes le dernier survivant !\n");
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Victoire", "Vous êtes le dernier survivant !", window);
+            game->statusShown = 1;
+        } else if (game->gameOver == 1) {
+            printf("GAME OVER : Vous avez perdu !\n");
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Perdu", "Vous avez perdu !", window);
+            game->statusShown = 1;
+        }
     }
 }

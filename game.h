@@ -18,10 +18,13 @@ typedef struct
     int score;
     int gameOver;
     int victory; // 0 = en cours/perdu, 1 = gagné
+    int opponentPresent; // 1 si un adversaire a déjà été détecté
+    int statusShown; // 1 si le message de fin a déjà été affiché
 } Game;
 
 // Fonctions d'initialisation et de cycle de vie
 void initGame(Game *game);
+void resetGame(Game *game);
 void spawnPiece(Game *game);
 void checkGameStatus(Game *game);
 
